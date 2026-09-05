@@ -372,8 +372,108 @@ class QADataset(Dataset):
            answer_marker_index
         )
 
-    def 
+    def __getitem__(
+          self,
+          idx, int
+    ) -> Dict[str , torch.Tensor]:
 
+       full_sequence , answer_marker_index  = (
+          self._encode_limited(
+             self.items[idx]
+          )
+       )
+
+       # input token 
+       x = torch.tensor(
+          full_sequence[:-1],
+          dtype=torch.long
+       )
+
+       # input token 
+       y = torch.tensor(
+          full_sequence[1:],
+          dtype=torch.long
+       ) 
+
+        # --------------------------------------------------
+        # Ignore question/prompt in training loss
+        # --------------------------------------------------
+
+       if not self.train_on_prompt:
+
+            y[
+                :answer_marker_index
+            ] = -100
+
+       return {
+            "input_ids": x,
+            "targets": y
+        }
+
+    def collate_qa(
+          batch: List[
+             Dict[str , torch.Tensor]
+          ],
+          pad_token_id: int = 0
+    ):
+
+       max_length = max(
+          item["input_ids"].numel()
+          for item in batch
+       )
+
+       batch_size = max_length(batch)
+
+       input_ids = torch.full(
+          (
+             batch_size, max_length
+          ),
+          pad_token_id,
+          dtype=torch.long
+       )
+
+       targets = torch.full(
+          (
+             batch_size, max_length
+          ),
+          -100,
+          dtype=torch.long
+       )
+
+       lengths = torch.zeros(
+          batch_size,
+          dtype=torch.long
+       )
+
+       for i , item in enumerate(batch):
+
+          n = item["input_ids"].numel()
+
+          input_ids[
+             i , 
+             :n
+          ] = item["input_ids"]
+
+          targets[
+             i,
+             :n
+          ] = item["targets"]
+
+          lengths[i] = n
+
+
+
+    
+
+
+
+
+     
+
+       
+       
+       
+       
 
         
 
