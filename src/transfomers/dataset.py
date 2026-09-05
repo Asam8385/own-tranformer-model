@@ -365,12 +365,14 @@ class QADataset(Dataset):
         answer_marker_index = (
            2 + len(question_ids)
         )
-        
+
 
         return (
            full_sequence,
            answer_marker_index
         )
+
+    def 
 
 
         
