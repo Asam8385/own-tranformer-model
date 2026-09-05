@@ -238,23 +238,157 @@ class QADataset(Dataset):
 
 
 
+    # ------------------------------------------------------
+    # Encode while respecting context size
+    # ------------------------------------------------------
+
     def _encode_limited(
-          self,
-          item: QAItem
+        self,
+        item: QAItem
     ) -> tuple[list[int], int]:
 
+        tok = self.tokenizer
 
-       tok  = self.tokenizer
+        question_ids = tok.encode_text(
+            item.question.strip()
+        )
 
-       question_ids = tok.encode_text(
-          item.question.strip()
-       )
+        answer_ids = tok.encode_text(
+            item.answer.strip()
+        )
 
-       answer_ids = tok.encode_text(
-          item.answer.strip()
-       )
+        # We need max_seq_len + 1 because:
+        #
+        # full:
+        # [1,2,3,4,5]
+        #
+        # input:
+        # [1,2,3,4]
+        #
+        # target:
+        # [2,3,4,5]
+
+        max_total = (
+            self.max_seq_len + 1
+        )
+
+        # BOS
+        # Q
+        # A
+        # EOS
+        #
+        # = 4 fixed special tokens
+
+        available = (
+            max_total - 4
+        )
+
+        if available <= 0:
+
+            raise ValueError(
+                "max_seq_len is too small"
+            )
+
+        # Initially reserve approximately
+        # half for question.
+
+        question_budget = min(
+            len(question_ids),
+            available,
+            max(
+                1,
+                max(
+                    8,
+                    available // 2
+                )
+            )
+        )
+
+        answer_budget = (
+            available - question_budget
+        )
+
+        # If answer is short, allow question
+        # to use unused capacity.
+
+        if len(answer_ids) < answer_budget:
+
+            extra = (
+                answer_budget
+                - len(answer_ids)
+            )
+
+            question_budget = min(
+                len(question_ids),
+                question_budget + extra
+            )
+
+            answer_budget = (
+                available
+                - question_budget
+            )
+
+        question_ids = (
+            question_ids[
+                :question_budget
+            ]
+        )
+
+        answer_ids = (
+            answer_ids[
+                :answer_budget
+            ]
+        )
+
+        full_sequence = (
+
+           [
+              tok.special.bos ,
+              tok.special.question
+           ]
+           +
+           question_ids
+           +
+           [
+              tok.special.answer
+           ]
+           +
+           answer_ids
+           +
+           [
+              tok.special.eos
+           ]
+        )
+
+        # position of <A>
+
+        answer_marker_index = (
+           2 + len(question_ids)
+        )
+        
+
+        return (
+           full_sequence,
+           answer_marker_index
+        )
+
+
+        
+
+
+
 
        
+
+
+
+
+
+        
+
+
+
+
    
    
 
