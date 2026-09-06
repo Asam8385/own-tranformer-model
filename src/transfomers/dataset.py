@@ -461,6 +461,22 @@ class QADataset(Dataset):
 
           lengths[i] = n
 
+       return {
+          "input_ids":
+            input_ids,
+
+         "targets":
+            targets,
+
+         "lengths":
+            lengths
+          
+       }
+
+
+
+
+
 
 
     
