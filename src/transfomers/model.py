@@ -118,8 +118,44 @@ class  CasualSelfAttention(
             config.dropout
         )
 
-        
+
         self.resid_dropout = nn.Dropout(
             config.dropout
         )
+
+        # --------------------------------------------------
+        # CAUSAL MASK
+        # --------------------------------------------------
+
+        # Example:
+        #
+        # 1 0 0 0
+        # 1 1 0 0
+        # 1 1 1 0
+        # 1 1 1 1
+        #
+        # A token cannot look into future tokens.
+
+        mask = torch.tril(
+            torch.ones(
+                config.max_seq_len,
+                config.max_seq_len,
+                dtype=torch.bool
+            )
+        )
+
+        mask = mask.view(
+            1,
+            1,
+            config.max_seq_len,
+            config.max_seq_len
+        )
+
+        self.register_buffer(
+            "casual_mask" ,
+            mask ,
+            persistent = False
+        )
+
+        
 
