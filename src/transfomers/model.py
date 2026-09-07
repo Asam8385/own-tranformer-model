@@ -156,6 +156,28 @@ class  CasualSelfAttention(
             mask ,
             persistent = False
         )
+ 
 
-        
+    # ------------------------------------------------------
+    # FORWARD
+    # ------------------------------------------------------
+
+
+    def forward(
+            self,
+            x: torch.Tensor 
+    ) -> torch.Tensor:
+
+        # x :
+        #
+        # [batch , sequence , d_model]
+
+        batch_size , seq_len, chennels = (
+            x.shape
+        )
+
+        # generate q k v
+
+        qkv = self.qkv(x)
+
 
