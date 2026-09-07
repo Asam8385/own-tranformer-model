@@ -84,7 +84,7 @@ class  CasualSelfAttention(
 
         # n of attention heads
 
-        self. h_heads = config.n_heads
+        self.n_heads = config.n_heads
 
         self.head_dim = config.d_model // config.n_heads
 
@@ -172,12 +172,62 @@ class  CasualSelfAttention(
         #
         # [batch , sequence , d_model]
 
-        batch_size , seq_len, chennels = (
+        batch_size , seq_len, channels = (
             x.shape
         )
 
         # generate q k v
 
         qkv = self.qkv(x)
+
+
+        # Current:
+        #
+        # [B,T,3*d_model]
+        #
+        # Change:
+        #
+        # [B,T,3,H,D]
+
+        qkv = qkv.view(
+            batch_size,
+            seq_len,
+            3,
+            self.n_heads,
+            self.head_dim
+        )  
+
+        # Separate query, key and value
+
+        q, k, v = qkv.unbind(
+            dim=2
+        ) 
+
+        # --------------------------------------------------
+        # Move attention heads forward
+        # --------------------------------------------------
+
+        # [B,T,H,D]
+        #
+        # ->
+        #
+        # [B,H,T,D]
+
+        q = q.transpose(
+            1,
+            2
+        )
+
+        k = k.transpose(
+            1,
+            2
+        )
+
+        v = v.transpose(
+            1,
+            2
+        )   
+
+
 
 
