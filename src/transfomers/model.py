@@ -15,7 +15,7 @@ import torch
 
 import torch.nn as nn
 
-import torch.nn.functional as f
+import torch.nn.functional as F
 
 @dataclass
 class GPTconfig:
@@ -259,6 +259,85 @@ class  CasualSelfAttention(
                 scores.dtype
             ).min
         )
+
+        # softmax
+
+        attention_weights = F.softmax(
+            scores,
+            dim=-1
+        )
+
+        attention_weights = (
+            self.attn_dropout(
+                attention_weights
+            )
+        )
+
+        # -------------------------------------------------
+        # ATTENTION × VALUES
+        # --------------------------------------------------
+
+        output = (
+            attention_weights
+            @
+            v
+        )
+
+        # [B,H,T,D]
+        #
+        # ->
+        #
+        # [B,T,H,D]
+
+        output = output.transpose(
+            1,
+            2
+        )
+
+        # --------------------------------------------------
+        # ATTENTION × VALUES
+        # --------------------------------------------------
+
+        output = (
+            attention_weights
+            @
+            v
+        )
+
+        # [B,H,T,D]
+        #
+        # ->
+        #
+        # [B,T,H,D]
+
+        output = output.transpose(
+            1,
+            2
+        )
+
+        # Combine all heads
+
+        output = (
+            output
+            .contiguous()
+            .view(
+                batch_size,
+                seq_len,
+                channels
+            )
+        )
+
+        # Final output projection
+
+        output = self.out_proj(
+            output
+        )
+
+        output = self.resid_dropout(
+            output
+        )
+
+        return output
 
 
 
