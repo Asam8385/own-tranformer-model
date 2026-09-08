@@ -152,7 +152,7 @@ class  CasualSelfAttention(
         )
 
         self.register_buffer(
-            "casual_mask" ,
+            "causal_mask" ,
             mask ,
             persistent = False
         )
@@ -226,7 +226,39 @@ class  CasualSelfAttention(
         v = v.transpose(
             1,
             2
-        )   
+        ) 
+
+        # --------------------------------------------------
+        # SCALED DOT PRODUCT ATTENTION
+        # --------------------------------------------------
+
+        # Q @ K^T
+        #
+        # result:
+        #
+        # [B,H,T,T]  
+
+        scores = (
+            q 
+            @
+            k.trasnpose(
+                -2 ,
+                -1
+            )
+        )
+
+        mask = self.causal_mask[
+            : , : ,
+            :seq_len,
+            :seq_len
+        ]
+
+        scores = scores.maked_fill(
+            ~mask,
+            torch.finfo(
+                scores.dtype
+            ).min
+        )
 
 
 
