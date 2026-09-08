@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill:#111; }
+      .sub { font: 700 22px Arial, sans-serif; fill:#222; }
+      .txt { font: 18px Arial, sans-serif; fill:#222; }
+      .small { font: 16px Arial, sans-serif; fill:#333; }
+      .box { stroke:#333; stroke-width:2; rx:18; ry:18; }
+      .line { stroke:#333; stroke-width:3; fill:none; marker-end:url(#arrow); }
+      .skip { stroke:#555; stroke-width:3; fill:none; stroke-dasharray:8 6; marker-end:url(#arrow); }
+      .plus { fill:#fff; stroke:#333; stroke-width:2; }
+    </style>
+  </defs>
+
+  <text x="750" y="55" text-anchor="middle" class="title">Why a Transformer Block Has Two Residual Connections</text>
+  <text x="750" y="88" text-anchor="middle" class="txt">Each major sub-layer gets its own shortcut path.</text>
+
+  <!-- Input -->
+  <rect x="70" y="335" width="150" height="90" fill="#dfefff" class="box"/>
+  <text x="145" y="370" text-anchor="middle" class="sub">Input x</text>
+  <text x="145" y="400" text-anchor="middle" class="small">[B, T, 256]</text>
+
+  <!-- LN1 -->
+  <rect x="285" y="315" width="160" height="130" fill="#eee7ff" class="box"/>
+  <text x="365" y="355" text-anchor="middle" class="sub">LayerNorm</text>
+  <text x="365" y="385" text-anchor="middle" class="txt">ln1(x)</text>
+  <text x="365" y="418" text-anchor="middle" class="small">normalizes each token</text>
+
+  <!-- Attention -->
+  <rect x="500" y="295" width="200" height="170" fill="#ffe3ec" class="box"/>
+  <text x="600" y="340" text-anchor="middle" class="sub">Self-Attention</text>
+  <text x="600" y="375" text-anchor="middle" class="txt">Q, K, V</text>
+  <text x="600" y="408" text-anchor="middle" class="small">adds contextual information</text>
+  <text x="600" y="435" text-anchor="middle" class="small">from previous tokens</text>
+
+  <!-- Add1 -->
+  <circle cx="790" cy="380" r="34" class="plus"/>
+  <text x="790" y="390" text-anchor="middle" class="title">+</text>
+
+  <!-- x1 -->
+  <rect x="855" y="335" width="170" height="90" fill="#e8f6e8" class="box"/>
+  <text x="940" y="370" text-anchor="middle" class="sub">x₁</text>
+  <text x="940" y="400" text-anchor="middle" class="small">x + Attention</text>
+
+  <!-- LN2 -->
+  <rect x="1080" y="315" width="160" height="130" fill="#eee7ff" class="box"/>
+  <text x="1160" y="355" text-anchor="middle" class="sub">LayerNorm</text>
+  <text x="1160" y="385" text-anchor="middle" class="txt">ln2(x₁)</text>
+  <text x="1160" y="418" text-anchor="middle" class="small">prepares x₁ for FFN</text>
+
+  <!-- FFN -->
+  <rect x="1290" y="285" width="180" height="190" fill="#fff0cf" class="box"/>
+  <text x="1380" y="330" text-anchor="middle" class="sub">Feed Forward</text>
+  <text x="1380" y="362" text-anchor="middle" class="txt">FFN / MLP</text>
+  <text x="1380" y="397" text-anchor="middle" class="small">Linear → GELU → Linear</text>
+  <text x="1380" y="425" text-anchor="middle" class="small">refines each token's</text>
+  <text x="1380" y="450" text-anchor="middle" class="small">features independently</text>
+
+  <!-- Main arrows first section -->
+  <path d="M220 380 L285 380" class="line"/>
+  <path d="M445 380 L500 380" class="line"/>
+  <path d="M700 380 L756 380" class="line"/>
+  <path d="M824 380 L855 380" class="line"/>
+  <path d="M1025 380 L1080 380" class="line"/>
+  <path d="M1240 380 L1290 380" class="line"/>
+
+  <!-- Residual 1 -->
+  <path d="M145 335 C145 190, 790 190, 790 346" class="skip"/>
+  <text x="460" y="165" text-anchor="middle" class="sub">Residual connection 1</text>
+  <text x="460" y="195" text-anchor="middle" class="small">original x bypasses LayerNorm + Attention</text>
+
+  <!-- Residual 2 and final add/output placed lower -->
+  <circle cx="1160" cy="640" r="34" class="plus"/>
+  <text x="1160" y="650" text-anchor="middle" class="title">+</text>
+
+  <rect x="1250" y="595" width="180" height="90" fill="#dfefff" class="box"/>
+  <text x="1340" y="630" text-anchor="middle" class="sub">Output x₂</text>
+  <text x="1340" y="660" text-anchor="middle" class="small">x₁ + FFN(...)</text>
+
+  <!-- route FFN down -->
+  <path d="M1380 475 L1380 540 L1160 540 L1160 606" class="line"/>
+
+  <!-- residual 2 from x1 -->
+  <path d="M940 425 C940 540, 1000 640, 1126 640" class="skip"/>
+  <text x="940" y="575" text-anchor="middle" class="sub">Residual connection 2</text>
+  <text x="940" y="605" text-anchor="middle" class="small">x₁ bypasses LayerNorm + FFN</text>
+
+  <path d="M1194 640 L1250 640" class="line"/>
+
+  <!-- Formula boxes -->
+  <rect x="120" y="740" width="520" height="105" fill="#f7f7f7" class="box"/>
+  <text x="380" y="778" text-anchor="middle" class="sub">First residual</text>
+  <text x="380" y="815" text-anchor="middle" class="txt">x₁ = x + Attention(LayerNorm(x))</text>
+
+  <rect x="820" y="740" width="560" height="105" fill="#f7f7f7" class="box"/>
+  <text x="1100" y="778" text-anchor="middle" class="sub">Second residual</text>
+  <text x="1100" y="815" text-anchor="middle" class="txt">x₂ = x₁ + FFN(LayerNorm(x₁))</text>
+</svg>
