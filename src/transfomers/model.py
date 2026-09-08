@@ -294,26 +294,6 @@ class  CasualSelfAttention(
             2
         )
 
-        # --------------------------------------------------
-        # ATTENTION × VALUES
-        # --------------------------------------------------
-
-        output = (
-            attention_weights
-            @
-            v
-        )
-
-        # [B,H,T,D]
-        #
-        # ->
-        #
-        # [B,T,H,D]
-
-        output = output.transpose(
-            1,
-            2
-        )
 
         # Combine all heads
 
@@ -340,8 +320,65 @@ class  CasualSelfAttention(
         return output
 
 
-        
+
+# ==========================================================
+# FEED-FORWARD NETWORK
+# ==========================================================
 
 
+class FeedForward(
+    nn.modules
+):
 
+    def __init__(
+            self ,
+            config: GPTconfig
+    )-> None:
+
+        super.__init__()
+
+        hidden_dimension = (
+            config.ff_mult
+            *
+            config.d_model
+
+        )
+
+        self.network = nn.Sequential(
+
+
+            nn.Linear(
+                config.d_model,
+                hidden_dimension
+            ),
+
+            nn.GELU(),
+
+            nn.Linear(
+                hidden_dimension,
+                config.d_model
+            ),
+
+            nn.Dropout(
+                config.dropout
+            )
+
+        )
+
+    def forward(
+            self,
+            x: torch.Tensor
+    )-> torch.Tensor:
+
+        return self.network(x)
+
+
+# ==========================================================
+# TRANSFORMER BLOCK
+# ==========================================================
+
+
+class TransformerBlock(
+    
+)
 
