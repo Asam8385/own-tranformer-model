@@ -563,6 +563,124 @@ class MiniGPT(
                 std=0.02
             )
 
+
+    # ======================================================
+    # FORWARD PASS
+    # ======================================================
+
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        targets: Optional[
+            torch.Tensor
+        ] = None
+    ):
+
+        batch_size, seq_len = (
+            input_ids.shape
+        )
+
+        # Context length check
+
+        if (
+            seq_len
+            >
+            self.config.max_seq_len
+        ):
+
+            raise ValueError(
+
+                f"Sequence length "
+                f"{seq_len} exceeds "
+                f"max_seq_len="
+                f"{self.config.max_seq_len}"
+            )
+
+        # --------------------------------------------------
+        # POSITION IDs
+        # --------------------------------------------------
+
+        positions = torch.arange(
+            seq_len,
+            device=input_ids.device
+        )
+
+        positions = positions.unsqueeze(
+            0
+        )
+
+        # --------------------------------------------------
+        # EMBEDDINGS
+        # --------------------------------------------------
+
+        token_embeddings = (
+            self.token_embedding(
+                input_ids
+            )
+        )
+
+        position_embeddings = (
+            self.position_embedding(
+                positions
+            )
+        )
+
+        # Token + position
+
+        x = (
+            token_embeddings
+            +
+            position_embeddings
+        )
+
+        x = self.dropout(x)
+
+        # --------------------------------------------------
+        # TRANSFORMER
+        # --------------------------------------------------
+
+        for block in self.blocks:
+
+            x = block(x)
+
+        # --------------------------------------------------
+        # FINAL LAYER NORM
+        # --------------------------------------------------
+
+        x = self.final_norm(x)
+
+        # --------------------------------------------------
+        # VOCABULARY LOGITS
+        # --------------------------------------------------
+
+        logits = self.lm_head(x)
+
+        # logits shape:
+        #
+        # [batch, sequence, vocab_size]
+
+        loss = None
+
+        # cross entropy loss
+
+        if targets is not None:
+
+            loss = F.cross_entropy(
+
+                logits.reshape(
+                    -1,
+                    logits.size(-1)
+                ),
+
+                targets.reshape(-1),
+
+                ignore_index= -100
+            )
+        return (
+            logits , loss
+        )
+
+    
               
 
 
