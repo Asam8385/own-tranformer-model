@@ -69,7 +69,7 @@ class GPTconfig:
 # CAUSAL MULTI-HEAD SELF ATTENTION
 # ==========================================================
 
-class  CasualSelfAttention(
+class  CausalSelfAttention(
     nn.modules
 ):
 
@@ -373,12 +373,198 @@ class FeedForward(
         return self.network(x)
 
 
+
 # ==========================================================
 # TRANSFORMER BLOCK
 # ==========================================================
 
-
 class TransformerBlock(
-    
-)
+    nn.Module
+):
+
+    def __init__(
+        self,
+        config: GPTconfig
+    ) -> None:
+
+        super().__init__()
+
+        # Layer normalization before attention
+        self.ln1 = nn.LayerNorm(
+            config.d_model
+        )
+
+        self.attention = (
+            CausalSelfAttention(
+                config
+            )
+        )
+
+        # Layer normalization before FFN
+        self.ln2 = nn.LayerNorm(
+            config.d_model
+        )
+
+        self.feed_forward = (
+            FeedForward(
+                config
+            )
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor
+    ) -> torch.Tensor:
+
+        # --------------------------------------------------
+        # Attention + residual connection
+        # --------------------------------------------------
+
+        x = (
+            x
+            +
+            self.attention(
+                self.ln1(x)
+            )
+        )
+
+        # --------------------------------------------------
+        # FFN + residual connection
+        # --------------------------------------------------
+
+        x = (
+            x
+            +
+            self.feed_forward(
+                self.ln2(x)
+            )
+        )
+
+        return x
+
+
+
+class MiniGPT(
+    nn.Module
+):
+    def __int__(
+            self,
+            config: GPTconfig
+    ) -> None:
+        
+        super.__init__()
+
+        config.validate()
+
+        self.config = config
+
+        # --------------------------------------------------
+        # TOKEN EMBEDDINGS
+        # --------------------------------------------------
+
+        self.token_embedding = (
+            nn.Embedding(
+                config.vocab_size,
+                config.d_model
+            )
+        )
+
+        self.position_embedding = (
+            nn.Embedding(
+                config.max_seq_len,
+                config.d_model
+            )
+        )    
+
+        self.dropout = nn.Dropout(
+            config.dropout
+        )
+
+        self.blocks = nn.ModuleList(
+
+            [
+                TransformerBlock(
+                    config
+                )
+
+                for _ in range(
+                    config.n_layers
+                )
+            ]
+        )
+
+
+        # --------------------------------------------------
+        # FINAL NORMALIZATION
+        # --------------------------------------------------
+
+        self.final_norm = nn.LayerNorm(
+            config.d_model
+        )
+
+        # this used to convert my 256 embeddings to  261 
+        self.lm_head = nn.Linear(
+            config.d_model,
+            config.vocab_size,
+            bias=False
+        )
+
+        # Initialize the weights
+        self.apply(
+            self._init_weights
+        )
+
+        # --------------------------------------------------
+        # WEIGHT TYING
+        # --------------------------------------------------
+
+        # Input token embeddings and output
+        # token classifier share parameters.
+
+        self.lm_head.weight = (
+            self.token_embedding.weight
+        ) 
+
+
+    # ======================================================
+    # INITIALIZE MODEL WEIGHTS
+    # ======================================================
+
+    @staticmethod
+    def _init_weights(
+        module: nn.Module
+    ) -> None:
+
+        if isinstance(
+            module,
+            nn.Linear
+        ):
+
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02
+            )
+
+            if module.bias is not None:
+
+                nn.init.zeros_(
+                    module.bias
+                )
+
+        elif isinstance(
+            module,
+            nn.Embedding
+        ):
+
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02
+            )
+
+              
+
+
+
 
