@@ -14,7 +14,7 @@ class SpecialTokens:
 class ByteTokenizer:
 
     """
-    Simple UTF-8 byte tokenizer built from scratch.
+    UTF-8 byte tokenizer built from scratch.
 
     Special tokens:
         0 = <PAD>
