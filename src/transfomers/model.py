@@ -3,22 +3,25 @@ from __future__ import annotations
 import math
 
 from dataclasses import (
-
-   asdict,
-   dataclass
-
+    asdict,
+    dataclass
 )
 
 from typing import Optional
 
-import torch 
+import torch
 
 import torch.nn as nn
 
 import torch.nn.functional as F
 
+
+# ==========================================================
+# MODEL CONFIGURATION
+# ==========================================================
+
 @dataclass
-class GPTconfig:
+class GPTConfig:
 
     # Tokenizer vocabulary size
     vocab_size: int = 261
@@ -69,27 +72,36 @@ class GPTconfig:
 # CAUSAL MULTI-HEAD SELF ATTENTION
 # ==========================================================
 
-class  CausalSelfAttention(
-    nn.modules
+class CausalSelfAttention(
+    nn.Module
 ):
 
     def __init__(
-            self, 
-            config: GPTconfig
-    )-> None:
+        self,
+        config: GPTConfig
+    ) -> None:
 
-        super.__init__()
+        super().__init__()
 
         config.validate()
 
-        # n of attention heads
+        # Number of attention heads
+        self.n_heads = (
+            config.n_heads
+        )
 
-        self.n_heads = config.n_heads
+        # Size of each attention head
+        self.head_dim = (
+            config.d_model
+            //
+            config.n_heads
+        )
 
-        self.head_dim = config.d_model // config.n_heads
+        self.d_model = (
+            config.d_model
+        )
 
-
-       # --------------------------------------------------
+        # --------------------------------------------------
         # Q, K, V projection
         # --------------------------------------------------
 
@@ -103,11 +115,11 @@ class  CausalSelfAttention(
 
         self.qkv = nn.Linear(
             config.d_model,
-            3* config.d_model,
+            3 * config.d_model,
             bias=False
         )
 
-        #attention output projection 
+        # Attention output projection
         self.out_proj = nn.Linear(
             config.d_model,
             config.d_model,
@@ -117,7 +129,6 @@ class  CausalSelfAttention(
         self.attn_dropout = nn.Dropout(
             config.dropout
         )
-
 
         self.resid_dropout = nn.Dropout(
             config.dropout
@@ -152,34 +163,33 @@ class  CausalSelfAttention(
         )
 
         self.register_buffer(
-            "causal_mask" ,
-            mask ,
-            persistent = False
+            "causal_mask",
+            mask,
+            persistent=False
         )
- 
 
     # ------------------------------------------------------
     # FORWARD
     # ------------------------------------------------------
 
-
     def forward(
-            self,
-            x: torch.Tensor 
+        self,
+        x: torch.Tensor
     ) -> torch.Tensor:
 
-        # x :
+        # x:
         #
-        # [batch , sequence , d_model]
+        # [batch, sequence, d_model]
 
-        batch_size , seq_len, channels = (
+        batch_size, seq_len, channels = (
             x.shape
         )
 
-        # generate q k v
+        # --------------------------------------------------
+        # Generate Q K V
+        # --------------------------------------------------
 
         qkv = self.qkv(x)
-
 
         # Current:
         #
@@ -195,13 +205,13 @@ class  CausalSelfAttention(
             3,
             self.n_heads,
             self.head_dim
-        )  
+        )
 
         # Separate query, key and value
 
         q, k, v = qkv.unbind(
             dim=2
-        ) 
+        )
 
         # --------------------------------------------------
         # Move attention heads forward
@@ -226,7 +236,7 @@ class  CausalSelfAttention(
         v = v.transpose(
             1,
             2
-        ) 
+        )
 
         # --------------------------------------------------
         # SCALED DOT PRODUCT ATTENTION
@@ -236,31 +246,48 @@ class  CausalSelfAttention(
         #
         # result:
         #
-        # [B,H,T,T]  
+        # [B,H,T,T]
 
         scores = (
-            q 
+            q
             @
-            k.trasnpose(
-                -2 ,
+            k.transpose(
+                -2,
                 -1
             )
         )
 
+        # Scale by sqrt(head dimension)
+
+        scores = (
+            scores
+            /
+            math.sqrt(
+                self.head_dim
+            )
+        )
+
+        # --------------------------------------------------
+        # APPLY CAUSAL MASK
+        # --------------------------------------------------
+
         mask = self.causal_mask[
-            : , : ,
+            :,
+            :,
             :seq_len,
             :seq_len
         ]
 
-        scores = scores.maked_fill(
+        scores = scores.masked_fill(
             ~mask,
             torch.finfo(
                 scores.dtype
             ).min
         )
 
-        # softmax
+        # --------------------------------------------------
+        # SOFTMAX
+        # --------------------------------------------------
 
         attention_weights = F.softmax(
             scores,
@@ -273,7 +300,7 @@ class  CausalSelfAttention(
             )
         )
 
-        # -------------------------------------------------
+        # --------------------------------------------------
         # ATTENTION × VALUES
         # --------------------------------------------------
 
@@ -293,7 +320,6 @@ class  CausalSelfAttention(
             1,
             2
         )
-
 
         # Combine all heads
 
@@ -320,32 +346,28 @@ class  CausalSelfAttention(
         return output
 
 
-
 # ==========================================================
 # FEED-FORWARD NETWORK
 # ==========================================================
 
-
 class FeedForward(
-    nn.modules
+    nn.Module
 ):
 
     def __init__(
-            self ,
-            config: GPTconfig
-    )-> None:
+        self,
+        config: GPTConfig
+    ) -> None:
 
-        super.__init__()
+        super().__init__()
 
         hidden_dimension = (
             config.ff_mult
             *
             config.d_model
-
         )
 
         self.network = nn.Sequential(
-
 
             nn.Linear(
                 config.d_model,
@@ -362,16 +384,14 @@ class FeedForward(
             nn.Dropout(
                 config.dropout
             )
-
         )
 
     def forward(
-            self,
-            x: torch.Tensor
-    )-> torch.Tensor:
+        self,
+        x: torch.Tensor
+    ) -> torch.Tensor:
 
         return self.network(x)
-
 
 
 # ==========================================================
@@ -384,7 +404,7 @@ class TransformerBlock(
 
     def __init__(
         self,
-        config: GPTconfig
+        config: GPTConfig
     ) -> None:
 
         super().__init__()
@@ -443,16 +463,20 @@ class TransformerBlock(
         return x
 
 
+# ==========================================================
+# COMPLETE GPT MODEL
+# ==========================================================
 
 class MiniGPT(
     nn.Module
 ):
-    def __int__(
-            self,
-            config: GPTconfig
+
+    def __init__(
+        self,
+        config: GPTConfig
     ) -> None:
-        
-        super.__init__()
+
+        super().__init__()
 
         config.validate()
 
@@ -469,16 +493,24 @@ class MiniGPT(
             )
         )
 
+        # --------------------------------------------------
+        # POSITION EMBEDDINGS
+        # --------------------------------------------------
+
         self.position_embedding = (
             nn.Embedding(
                 config.max_seq_len,
                 config.d_model
             )
-        )    
+        )
 
         self.dropout = nn.Dropout(
             config.dropout
         )
+
+        # --------------------------------------------------
+        # TRANSFORMER BLOCKS
+        # --------------------------------------------------
 
         self.blocks = nn.ModuleList(
 
@@ -493,7 +525,6 @@ class MiniGPT(
             ]
         )
 
-
         # --------------------------------------------------
         # FINAL NORMALIZATION
         # --------------------------------------------------
@@ -502,14 +533,17 @@ class MiniGPT(
             config.d_model
         )
 
-        # this used to convert my 256 embeddings to  261 
+        # --------------------------------------------------
+        # LANGUAGE MODEL HEAD
+        # --------------------------------------------------
+
         self.lm_head = nn.Linear(
             config.d_model,
             config.vocab_size,
             bias=False
         )
 
-        # Initialize the weights
+        # Initialize weights
         self.apply(
             self._init_weights
         )
@@ -523,8 +557,7 @@ class MiniGPT(
 
         self.lm_head.weight = (
             self.token_embedding.weight
-        ) 
-
+        )
 
     # ======================================================
     # INITIALIZE MODEL WEIGHTS
@@ -562,7 +595,6 @@ class MiniGPT(
                 mean=0.0,
                 std=0.02
             )
-
 
     # ======================================================
     # FORWARD PASS
@@ -661,7 +693,9 @@ class MiniGPT(
 
         loss = None
 
-        # cross entropy loss
+        # --------------------------------------------------
+        # CROSS ENTROPY LOSS
+        # --------------------------------------------------
 
         if targets is not None:
 
@@ -674,15 +708,281 @@ class MiniGPT(
 
                 targets.reshape(-1),
 
-                ignore_index= -100
+                # Ignore prompt/padding
+                ignore_index=-100
             )
+
         return (
-            logits , loss
+            logits,
+            loss
         )
 
-    
-              
+    # ======================================================
+    # TEXT GENERATION
+    # ======================================================
 
+    @torch.no_grad()
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        max_new_tokens: int = 200,
+        temperature: float = 0.8,
+        top_k: int = 40,
+        top_p: float = 0.95,
+        eos_token_id: int = 2,
+        suppress_token_ids:
+            Optional[list[int]] = None
+    ) -> torch.Tensor:
 
+        self.eval()
 
+        if temperature < 0:
 
+            raise ValueError(
+                "temperature must be >= 0"
+            )
+
+        # --------------------------------------------------
+        # AUTOREGRESSIVE GENERATION
+        # --------------------------------------------------
+
+        for _ in range(
+            max_new_tokens
+        ):
+
+            # If input gets too long,
+            # only use latest context.
+
+            context = input_ids[
+                :,
+                -self.config.max_seq_len:
+            ]
+
+            # Forward pass
+
+            logits, _ = self(
+                context
+            )
+
+            # Only care about prediction
+            # from final position.
+
+            logits = logits[
+                :,
+                -1,
+                :
+            ]
+
+            # ------------------------------------------------
+            # Prevent special structural tokens
+            # ------------------------------------------------
+
+            if suppress_token_ids:
+
+                logits[
+                    :,
+                    suppress_token_ids
+                ] = -float(
+                    "inf"
+                )
+
+            # ------------------------------------------------
+            # GREEDY DECODING
+            # ------------------------------------------------
+
+            if temperature == 0:
+
+                next_token = (
+                    torch.argmax(
+                        logits,
+                        dim=-1,
+                        keepdim=True
+                    )
+                )
+
+            else:
+
+                # --------------------------------------------
+                # TEMPERATURE
+                # --------------------------------------------
+
+                logits = (
+                    logits
+                    /
+                    max(
+                        temperature,
+                        1e-8
+                    )
+                )
+
+                # --------------------------------------------
+                # TOP-K
+                # --------------------------------------------
+
+                if (
+                    top_k
+                    and
+                    top_k > 0
+                ):
+
+                    k = min(
+                        top_k,
+                        logits.size(-1)
+                    )
+
+                    values, _ = (
+                        torch.topk(
+                            logits,
+                            k
+                        )
+                    )
+
+                    cutoff = values[
+                        :,
+                        [-1]
+                    ]
+
+                    logits = torch.where(
+
+                        logits < cutoff,
+
+                        -float("inf"),
+
+                        logits
+                    )
+
+                # --------------------------------------------
+                # TOP-P / NUCLEUS SAMPLING
+                # --------------------------------------------
+
+                if (
+                    top_p
+                    and
+                    0 < top_p < 1.0
+                ):
+
+                    sorted_logits, sorted_indices = (
+                        torch.sort(
+                            logits,
+                            descending=True
+                        )
+                    )
+
+                    sorted_probabilities = (
+                        F.softmax(
+                            sorted_logits,
+                            dim=-1
+                        )
+                    )
+
+                    cumulative_probabilities = (
+                        torch.cumsum(
+                            sorted_probabilities,
+                            dim=-1
+                        )
+                    )
+
+                    remove = (
+                        cumulative_probabilities
+                        >
+                        top_p
+                    )
+
+                    # Keep first token that
+                    # crosses threshold.
+
+                    remove[:, 1:] = (
+                        remove[
+                            :,
+                            :-1
+                        ].clone()
+                    )
+
+                    remove[:, 0] = False
+
+                    sorted_logits = (
+                        sorted_logits
+                        .masked_fill(
+                            remove,
+                            -float("inf")
+                        )
+                    )
+
+                    filtered_logits = (
+                        torch.full_like(
+                            logits,
+                            -float("inf")
+                        )
+                    )
+
+                    filtered_logits.scatter_(
+                        1,
+                        sorted_indices,
+                        sorted_logits
+                    )
+
+                    logits = filtered_logits
+
+                # --------------------------------------------
+                # CONVERT LOGITS -> PROBABILITIES
+                # --------------------------------------------
+
+                probabilities = F.softmax(
+                    logits,
+                    dim=-1
+                )
+
+                # Sample token
+
+                next_token = (
+                    torch.multinomial(
+                        probabilities,
+                        num_samples=1
+                    )
+                )
+
+            # ------------------------------------------------
+            # ADD PREDICTED TOKEN
+            # ------------------------------------------------
+
+            input_ids = torch.cat(
+
+                [
+                    input_ids,
+                    next_token
+                ],
+
+                dim=1
+            )
+
+            # ------------------------------------------------
+            # STOP AT EOS
+            # ------------------------------------------------
+
+            if torch.all(
+
+                next_token.squeeze(-1)
+                ==
+                eos_token_id
+
+            ):
+
+                break
+
+        return input_ids
+
+    # ======================================================
+    # PARAMETER COUNT
+    # ======================================================
+
+    def parameter_count(
+        self
+    ) -> int:
+
+        return sum(
+
+            parameter.numel()
+
+            for parameter
+            in self.parameters()
+        )
