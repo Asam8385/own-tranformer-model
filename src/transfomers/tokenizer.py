@@ -71,6 +71,9 @@ class ByteTokenizer:
                 marker = special_map.get(token_id, b"<UNKNOWN>")
 
                 raw.extend(marker)
+        return raw.decode("utf-8", errors="replace")
+
+
 
     def build_prompt(self, question: str) -> List[int]:
         """
@@ -99,6 +102,8 @@ class ByteTokenizer:
             + self.encode_text(answer.strip())
             + [self.special.eos]
         )
+
+        return tokens
        
 
 

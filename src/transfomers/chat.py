@@ -1,26 +1,21 @@
-"""Ask MiniGPT a question by pressing Run. No argparse is required."""
-
 from __future__ import annotations
 
 from pathlib import Path
 
 import torch
 
-from src.transfomers.model import GPTConfig, MiniGPT
-from src.transfomers.tokenizer import ByteTokenizer
-
 
 # ============================================================
 # CHANGE YOUR QUESTION HERE, THEN PRESS RUN
 # ============================================================
 
-QUESTION = "What is artificial intelligence?"
+QUESTION = "what is python list?"
 CHECKPOINT = "checkpoints/best.pt"
 MAX_NEW_TOKENS = 160
-TEMPERATURE = 0.0      # 0 = greedy decoding (repeatable results)
+TEMPERATURE = 0.5      # 0 = greedy decoding (repeatable results)
 TOP_K = 40
 TOP_P = 0.95
-INTERACTIVE = False    # True = keep asking questions in a terminal
+INTERACTIVE = False    # True = keep asking questions until you type exit
 
 
 # ============================================================
@@ -46,6 +41,17 @@ def load_model(path: Path, device: torch.device) -> MiniGPT:
     return model
 
 
+def decode_answer(tokenizer: ByteTokenizer, token_ids: list[int]) -> str:
+    """Turn generated token ids into text using the tokenizer's own byte offset.
+
+    Works with the tokenizer exactly as it is: special tokens (ids below BYTE_OFFSET)
+    are skipped and every other id is converted back to its UTF-8 byte.
+    """
+    offset = tokenizer.BYTE_OFFSET
+    raw = bytes(t - offset for t in token_ids if offset <= t < offset + 256)
+    return raw.decode("utf-8", errors="replace")
+
+
 def answer_question(model: MiniGPT, tokenizer: ByteTokenizer, question: str, device: torch.device) -> str:
     prompt_ids = tokenizer.build_prompt(question)
     if len(prompt_ids) >= model.config.max_seq_len:
@@ -67,11 +73,11 @@ def answer_question(model: MiniGPT, tokenizer: ByteTokenizer, question: str, dev
     generated = output_ids[0, len(prompt_ids):].tolist()
     if tokenizer.special.eos in generated:
         generated = generated[:generated.index(tokenizer.special.eos)]
-    return tokenizer.decode(generated).strip()
+    return decode_answer(tokenizer, generated).strip()
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parent
+    root = Path("/kaggle/working")
     path = Path(CHECKPOINT)
     if not path.is_absolute():
         path = root / path

@@ -9,10 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# ============================================================
-# MODEL CONFIGURATION
-# ============================================================
-
 @dataclass
 class GPTConfig:
     vocab_size: int = 261

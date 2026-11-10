@@ -178,7 +178,7 @@ class QADataset(Dataset):
 
         return full_sequence, answer_marker_index
 
-    def __getitem__(self, idx, int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         full_sequence, answer_marker_index = self._encode_limited(self.items[idx])
 
         # input tokens
@@ -198,7 +198,7 @@ class QADataset(Dataset):
         pad_token_id: int = 0,
     ):
         max_length = max(item["input_ids"].numel() for item in batch)
-        batch_size = max_length(batch)
+        batch_size = len(batch)
 
         """
             input_ids (filled with pad = 0)
